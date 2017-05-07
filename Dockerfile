@@ -1,36 +1,13 @@
-FROM ubuntu:16.04
-MAINTAINER G.T. F.O <gtfo@gtfo.com>
-
-RUN apt-get update && apt-get -y -q install \
-   software-properties-common \
-   libmicrohttpd-dev \
-   libssl-dev \ 
-   cmake \ 
-   build-essential \
-   unzip \
-   wget \ 
-   dos2unix
-
-ARG WALLET_ADDRESS=42jF56tc85UTZwhMQc6rHbMHTxHqK74qS2zqLyRZxLbwegsy7FJ9w4T5B69Ay5qeMEMuvVDwHNeopAxrEZkkHrMb5phovJ6
-ARG POOL_ADDRESS=monerohash.com:3333
-ARG POOL_PASSWORD=x
-
-RUN wget https://github.com/fireice-uk/xmr-stak-cpu/archive/v1.2.0-1.4.1.zip 
-RUN unzip /v1.2.0-1.4.1.zip
-RUN cd /xmr-stak-cpu-1.2.0-1.4.1 && \
-  cmake . && \
-  make install
-
-ADD config.txt /config.txt
-ADD entrypoint.sh /entrypoint.sh
-
-RUN dos2unix /config.txt
-RUN dos2unix /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-
-EXPOSE 8080
-
-
-RUN cp -v /config.txt /xmr-stak-cpu-1.2.0-1.4.1/bin/config.txt
-
-ENTRYPOINT ["/entrypoint.sh"]
+FROM alpine
+ADD  compiler_workaround.patch /root/
+RUN  apk add --no-cache libmicrohttpd libssl1.0 libstdc++ libgcc &&\
+     apk add --no-cache --virtual .build-deps wget openssl unzip patch cmake make g++ libmicrohttpd-dev openssl-dev patch &&\
+     cd && mkdir build && cd build &&\
+     wget https://github.com/fireice-uk/xmr-stak-cpu/archive/master.zip &&\
+     unzip master.zip && cd xmr-stak-cpu-master &&\
+     patch </root/compiler_workaround.patch &&\
+     cmake . -DCMAKE_INSTALL_PREFIX=/usr/local && make install &&\
+     rm /usr/local/bin/config.txt &&\
+     cd && rm -rf build &&\
+     apk del .build-deps
+ENTRYPOINT ["nice", "-n", "99", "xmr-stak-cpu"]
